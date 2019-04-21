@@ -22,7 +22,7 @@ public class FileListServiceImpl implements FileListService {
     @Override
     public Map<String, File> getFiles() {
         Map<String, File> files = new HashMap<>();
-        File root = new File("/hdd/updates");
+        File root = new File("/update");
         if (root.exists() && root.isDirectory()) {
             File[] listFiles = root.listFiles();
             for (File file : listFiles) {
