@@ -31,7 +31,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletResponse;
+import org.apache.commons.io.IOUtils;
 import org.netbeans.modules.android.web.service.FileListService;
+import org.netbeans.modules.android.web.service.UsageService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -64,6 +66,28 @@ public class AutoupdateService {
     Pattern p = Pattern.compile(re1 + re2 + re3 + re4 + re5 + re6 + re7 + re8 + re9 + re10 + re11 + re12 + re13 + re14, Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
     @Autowired
     FileListService fileService;
+    @Autowired
+    UsageService usageService;
+
+
+    @RequestMapping(value = "/hit/counter.svg", method = RequestMethod.GET)
+    public void getHit(HttpServletResponse response) {
+        InputStream resourceAsStream = AutoupdateService.class.getResourceAsStream("/org/netbeans/modules/android/web/counter.svg");
+        response.setContentType("image/svg+xml");
+         response.setHeader("Cache-Control", "no-cache, no-store");
+        response.setHeader("Pragma", "no-cache");
+        response.setDateHeader("Expires", 0);
+        try {
+            String content = IOUtils.toString(resourceAsStream, "UTF-8");
+            content = content.replace("9999", "" + usageService.getMaxCount());
+            InputStream targetStream = new ByteArrayInputStream(content.getBytes("UTF-8"));
+            org.apache.commons.io.IOUtils.copy(targetStream, response.getOutputStream());
+            response.flushBuffer();
+        } catch (IOException ex) {
+            Logger.getLogger(AutoupdateService.class.getName()).log(Level.SEVERE, null, ex);
+        }
+
+    }
 
     @RequestMapping(value = "/updates/{file_name}", method = RequestMethod.GET)
     public void getFile(
@@ -178,6 +202,13 @@ public class AutoupdateService {
         String content = new String(Files.readAllBytes(info), "UTF-8");
         Manifest manifest = new Manifest(new ByteArrayInputStream(content.getBytes("UTF-8")));
         Attributes mainAttributes = manifest.getMainAttributes();
+        //----------------
+        String moduleName = mainAttributes.getValue("OpenIDE-Module-Name");
+        if("NbAndroid-Core".equals(moduleName)){
+            String moduleImpl = mainAttributes.getValue("OpenIDE-Module-Implementation-Version");
+            usageService.increment(moduleImpl);
+        }
+        //----------------
         String value = mainAttributes.getValue("OpenIDE-Module-Module-Dependencies");
         value = value.replace(origImplVersion, implVersion);
         mainAttributes.putValue("OpenIDE-Module-Module-Dependencies", value);
