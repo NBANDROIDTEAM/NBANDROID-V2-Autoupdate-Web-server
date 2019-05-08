@@ -88,6 +88,26 @@ public class AutoupdateService {
         }
 
     }
+    
+      @RequestMapping(value = "/hit/current.svg", method = RequestMethod.GET)
+    public void getCurrentHit(HttpServletResponse response) {
+        InputStream resourceAsStream = AutoupdateService.class.getResourceAsStream("/org/netbeans/modules/android/web/counter.svg");
+        response.setContentType("image/svg+xml");
+         response.setHeader("Cache-Control", "no-cache, no-store");
+        response.setHeader("Pragma", "no-cache");
+        response.setDateHeader("Expires", 0);
+        try {
+            String content = IOUtils.toString(resourceAsStream, "UTF-8");
+            content = content.replace("usage", "last PR");
+            content = content.replace("9999", "" + usageService.getCurrentCount());
+            InputStream targetStream = new ByteArrayInputStream(content.getBytes("UTF-8"));
+            org.apache.commons.io.IOUtils.copy(targetStream, response.getOutputStream());
+            response.flushBuffer();
+        } catch (IOException ex) {
+            Logger.getLogger(AutoupdateService.class.getName()).log(Level.SEVERE, null, ex);
+        }
+
+    }
 
     @RequestMapping(value = "/updates/{file_name}", method = RequestMethod.GET)
     public void getFile(
