@@ -15,4 +15,6 @@ public interface UsageService {
     
     public int getMaxCount();
     
+    public int getCurrentCount();
+    
 }

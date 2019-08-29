@@ -69,17 +69,36 @@ public class AutoupdateService {
     @Autowired
     UsageService usageService;
 
-
     @RequestMapping(value = "/hit/counter.svg", method = RequestMethod.GET)
     public void getHit(HttpServletResponse response) {
         InputStream resourceAsStream = AutoupdateService.class.getResourceAsStream("/org/netbeans/modules/android/web/counter.svg");
         response.setContentType("image/svg+xml");
-         response.setHeader("Cache-Control", "no-cache, no-store");
+        response.setHeader("Cache-Control", "no-cache, no-store");
         response.setHeader("Pragma", "no-cache");
         response.setDateHeader("Expires", 0);
         try {
             String content = IOUtils.toString(resourceAsStream, "UTF-8");
             content = content.replace("9999", "" + usageService.getMaxCount());
+            InputStream targetStream = new ByteArrayInputStream(content.getBytes("UTF-8"));
+            org.apache.commons.io.IOUtils.copy(targetStream, response.getOutputStream());
+            response.flushBuffer();
+        } catch (IOException ex) {
+            Logger.getLogger(AutoupdateService.class.getName()).log(Level.SEVERE, null, ex);
+        }
+
+    }
+
+    @RequestMapping(value = "/hit/current.svg", method = RequestMethod.GET)
+    public void getCurrentHit(HttpServletResponse response) {
+        InputStream resourceAsStream = AutoupdateService.class.getResourceAsStream("/org/netbeans/modules/android/web/counter.svg");
+        response.setContentType("image/svg+xml");
+        response.setHeader("Cache-Control", "no-cache, no-store");
+        response.setHeader("Pragma", "no-cache");
+        response.setDateHeader("Expires", 0);
+        try {
+            String content = IOUtils.toString(resourceAsStream, "UTF-8");
+            content = content.replace("usage", "last PR");
+            content = content.replace("9999", "" + usageService.getCurrentCount());
             InputStream targetStream = new ByteArrayInputStream(content.getBytes("UTF-8"));
             org.apache.commons.io.IOUtils.copy(targetStream, response.getOutputStream());
             response.flushBuffer();
@@ -112,6 +131,10 @@ public class AutoupdateService {
                         }
                         for (String replace : toReplace) {
                             updatesXmlContent = updatesXmlContent.replace(replace, "\"" + implVersion + "-" + replace.substring(1));
+                        }
+                        //add support for NB11.1
+                        if ("netbeans-release-428-on-20190716".equals(implVersion)) {
+                            updatesXmlContent = updatesXmlContent.replace("org.netbeans.modules.java.source.base = 4", "org.netbeans.modules.java.source.base = 5");
                         }
                         InputStream targetStream = new ByteArrayInputStream(updatesXmlContent.getBytes("UTF-8"));
                         org.apache.commons.io.IOUtils.copy(targetStream, response.getOutputStream());
@@ -195,6 +218,10 @@ public class AutoupdateService {
     public void updateImplInModuleFile(Path info, String origImplVersion, String implVersion) throws IOException {
         String content = new String(Files.readAllBytes(info), "UTF-8");
         content = content.replace(origImplVersion, implVersion);
+        //add support for NB11.1
+        if ("netbeans-release-428-on-20190716".equals(implVersion)) {
+            content = content.replace("org.netbeans.modules.java.source.base = 4", "org.netbeans.modules.java.source.base = 5");
+        }
         Files.write(info, content.getBytes("UTF-8"), StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
     }
 
@@ -204,13 +231,17 @@ public class AutoupdateService {
         Attributes mainAttributes = manifest.getMainAttributes();
         //----------------
         String moduleName = mainAttributes.getValue("OpenIDE-Module-Name");
-        if("NbAndroid-Core".equals(moduleName)){
+        if ("NbAndroid-Core".equals(moduleName)) {
             String moduleImpl = mainAttributes.getValue("OpenIDE-Module-Implementation-Version");
             usageService.increment(moduleImpl);
         }
         //----------------
         String value = mainAttributes.getValue("OpenIDE-Module-Module-Dependencies");
         value = value.replace(origImplVersion, implVersion);
+        //add support for NB11.1
+        if ("netbeans-release-428-on-20190716".equals(implVersion)) {
+            value = value.replace("org.netbeans.modules.java.source.base = 4", "org.netbeans.modules.java.source.base = 5");
+        }
         mainAttributes.putValue("OpenIDE-Module-Module-Dependencies", value);
         ByteArrayOutputStream bo = new ByteArrayOutputStream();
         manifest.write(bo);
